@@ -6,7 +6,14 @@ const DATA_FILE = path.join(__dirname, "../data/monitors.json");
 
 let monitors = new Map<string, Monitor>();
 
-
+export function loadMonitors(): Map<string, Monitor> {
+    if (fs.existsSync(DATA_FILE)) {
+        const raw = fs.readFileSync(DATA_FILE, "utf-8");
+        const data: Monitor[] = JSON.parse(raw);
+        data.forEach(m => monitors.set(m.id, m));
+    }
+    return monitors;
+}
 
 export function saveMonitors() {
     fs.writeFileSync(

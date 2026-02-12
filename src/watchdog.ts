@@ -1,5 +1,5 @@
 import { Monitor } from "./types";
-import { setMonitor } from "./monitorStore";
+import { getAllMonitors, setMonitor } from "./monitorStore";
 
 const timers = new Map<string, NodeJS.Timeout>();
 
@@ -42,3 +42,16 @@ function triggerAlert(monitor: Monitor) {
     stopTimer(monitor.id);
 }
 
+export function recoverTimers() {
+    const now = Date.now();
+
+    for (const monitor of getAllMonitors()) {
+        if (monitor.status === "ACTIVE" && monitor.expiresAt) {
+            if (now >= monitor.expiresAt) {
+                triggerAlert(monitor);
+            } else {
+                startTimer(monitor);
+            }
+        }
+    }
+}

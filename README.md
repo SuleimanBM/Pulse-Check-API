@@ -1,135 +1,219 @@
-# Pulse-Check-API ("Watchdog" Sentinel)
-This challenge is designed to test your ability to bridge Computer Science fundamentals with Modern Backend Engineering.
+# Pulse-Check API (Watchdog Sentinel)
 
-## 1. Business Context
-> **Client:** *CritMon Servers Inc.* (A Critical Infrastructure Monitoring Company).
+This is a lightweight backend service built with Node.js, Express, and TypeScript that monitors remote devices using a watchdog timer mechanism.
 
-### The Problem
-CritMon provides monitoring for remote solar farms and unmanned weather stations in areas with poor connectivity. These devices are supposed to send "I'm alive" signals every hour.
+The system tracks registered monitors and triggers alerts if a device fails to send a heartbeat within its configured timeout period. It also supports pausing and resuming monitoring without generating false alerts.
 
-Currently, CritMon has no way of knowing if a device has gone offline (due to power failure or theft) until a human manually checks the logs. They need a system that alerts *them* when a device *stops* talking.
+## Problem Statement
 
-### The Solution
-You need to build a **Dead Man’s Switch API**. Devices will register a "monitor" with a countdown timer (e.g., 60 seconds). If the device fails to "ping" (send a heartbeat) to the API before the timer runs out, the system automatically triggers an alert.
+In remote environments (e.g., solar farms, weather stations, IoT deployments), devices must periodically confirm that they are operational. If they stop responding, the system must detect this and raise an alert.
 
----
+This project implements a **Watchdog Timer API** that:
 
-## 2. Technical Objective
-Build a backend service that manages stateful timers.
+i. Registers monitors
 
-* **Registration:** Allow a client to create a monitor with a specific timeout duration.
-* **Heartbeat:** Reset the countdown when a ping is received.
-* **Trigger:** Fire a webhook (or log a critical error) if the countdown reaches zero.
+ii. Accepts periodic heartbeats
 
+iii. Triggers alerts when heartbeats stop
 
----
+iv. Supports pause/resume functionality
 
-## 3. Getting Started
+v. Persists monitor state for crash recovery
 
-1.  **Fork this Repository:** Do not clone it directly. Create a fork to your own GitHub account.
-2.  **Environment:** You may use **Node.js, Python, Java or Go, etc.**.
-3.  **Submission:** Your final submission will be a link to your forked repository containing:
-    * The source code.
-    * The **Architecture Diagram**
-    * The `README.md` with documentation.
+## Architecture Overview
 
----
+The system consists of five main components:
 
-## 4. The Architecture Diagram 
-**Task:** Before you write any code, you must design the logic flow.
-**Deliverable:** A **Sequence Diagram** or **State Flowchart** embedded in your `README.md`.
+Client Devices – Send registration and heartbeat requests.
 
----
+Express API Server – Handles HTTP routes and orchestrates logic.
 
-## 5. User Stories & Acceptance Criteria
+Watchdog Timer Engine – Manages in-memory timers.
 
-### User Story 1: Registering a Monitor
-**As a** device administrator,  
-**I want to** create a new monitor for my device,  
-**So that** the system knows to track its status.
+Persistence Layer – Stores monitor state in monitors.json.
 
-**Acceptance Criteria:**
-- [ ] The API accepts a `POST /monitors` request.
-- [ ] Input: `{"id": "device-123", "timeout": 60, "alert_email": "admin@critmon.com"}`.
-- [ ] The system starts a countdown timer for 60 seconds associated with `device-123`.
-- [ ] Response: `201 Created` with a confirmation message.
+Alert System – Logs alert events when timeouts occur.
 
-### User Story 2: The Heartbeat (Reset)
-**As a** remote device,  
-**I want to** send a signal to the server,  
-**So that** my timer is reset and no alert is sent.
+## System Flows
+### 1. Monitor Registration Flow
 
-**Acceptance Criteria:**
-- [ ] The API accepts a `POST /monitors/{id}/heartbeat` request.
-- [ ] If the ID exists and the timer has NOT expired:
-    - [ ] Restart the countdown from the beginning (e.g., reset to 60 seconds).
-    - [ ] Return `200 OK`.
-- [ ] If the ID does not exist:
-    - [ ] Return `404 Not Found`.
+When a new monitor is registered:
 
-### User Story 3: The Alert (Failure State)
-**As a** support engineer,  
-**I want to** be notified immediately if a device stops sending heartbeats,  
-**So that** I can deploy a repair team.
+i. The API creates a monitor record.
 
-**Acceptance Criteria:**
-- [ ] If the timer for `device-123` reaches 0 seconds (no heartbeat received):
-    - [ ] The system must internally "fire" an alert.
-    - [ ] **Implementation:** For this project, simply `console.log` a JSON object: `{"ALERT": "Device device-123 is down!", "time": <timestamp>}`. (Or simulate sending an email).
-    - [ ] The monitor status changes to `down`.
+ii. The system calculates expiresAt = now + timeout.
 
----
+iii. The monitor is saved to persistence.
 
-## 6. Bonus User Story (The "Snooze" Button)
-**As a** maintenance technician,  
-**I want to** pause monitoring while I am repairing a device,  
-**So that** I don't trigger false alarms.
+iv. A one-shot watchdog timer is started.
 
-**Acceptance Criteria:**
-- [ ] Create a `POST /monitors/{id}/pause` endpoint.
-- [ ] When called, the timer stops completely. No alerts will fire.
-- [ ] Calling the heartbeat endpoint again automatically "un-pauses" the monitor and restarts the timer.
+v. Status is set to ACTIVE.
 
----
+Flow Summary
+Client → POST /monitors
+        → Express Server
+        → Save to Persistence
+        → Start Watchdog Timer
+        → Status = ACTIVE
 
-## 7. The "Developer's Choice" Challenge
-We value engineers who look for "what's missing."
+### 2. Heartbeat Flow (Timer Reset)
 
-**Task:** Identify **one** additional feature that makes this system more robust or user-friendly.
-1.  **Implement it.**
-2.  **Document it:** Explain *why* you added it in your README.
+When a heartbeat is received:
 
----
+i. The monitor is validated.
 
-## 8. Documentation Requirements
-Your final `README.md` must replace these instructions. It must cover:
+ii. expiresAt is recalculated.
 
-1.  **Architecture Diagram** 
-2.  **Setup Instructions** 
-3.  **API Documentation** 
-4.  **The Developer's Choice:** Explanation of your added feature.
+iii. The previous timer is cleared.
 
----
-Submit your repo link via the [online](https://forms.office.com/e/rGKtfeZCsH) form.
+iv. A new watchdog timer is started.
 
-## 🛑 Pre-Submission Checklist
-**WARNING:** Before you submit your solution, you **MUST** pass every item on this list.
-If you miss any of these critical steps, your submission will be **automatically rejected** and you will **NOT** be invited to an interview.
-
-### 1. 📂 Repository & Code
-- [ ] **Public Access:** Is your GitHub repository set to **Public**? (We cannot review private repos).
-- [ ] **Clean Code:** Did you remove unnecessary files (like `node_modules`, `.env` with real keys, or `.DS_Store`)?
-- [ ] **Run Check:** if we clone your repo and run `npm start` (or equivalent), does the server start immediately without crashing?
-
-### 2. 📄 Documentation (Crucial)
-- [ ] **Architecture Diagram:** Did you include a visual Diagram (Flowchart or Sequence Diagram) in the README?
-- [ ] **README Swap:** Did you **DELETE** the original instructions (the problem brief) from this file and replace it with your own documentation?
-- [ ] **API Docs:** Is there a clear list of Endpoints and Example Requests in the README?
+v. State is saved to persistence.
 
 
-### 3. 🧹 Git Hygiene
-- [ ] **Commit History:** Does your repo have multiple commits with meaningful messages? (A single "Initial Commit" is a red flag).
+Flow Summary  
+Client → POST /monitors/:id/heartbeat  
+        → Update expiresAt  
+        → Save to Persistence  
+        → Reset Watchdog Timer
 
----
-**Ready?**
-If you checked all the boxes above, submit your repository link in the application form. Good luck! 🚀
+### 3. Pause / Resume / Alert Flow
+
+When a monitor is paused:
+
+i. Status is set to PAUSED.
+
+ii. The watchdog timer is stopped.
+
+iii. No alerts are triggered.
+
+iv. When a heartbeat is received after pause:
+
+v. Status returns to ACTIVE.
+
+vi. Timer is restarted.
+
+vii. Monitoring resumes normally.
+
+![Alt text](./flowchart.jpg)
+### If a monitor remains ACTIVE and the timeout expires:
+
+triggerAlert() is executed.
+
+An alert message is logged.
+
+Status becomes DOWN.
+
+Flow Summary  
+Pause → Stop Timer → Status = PAUSED
+
+Heartbeat → Status = ACTIVE → Start Timer
+
+Timeout Expiry → triggerAlert() → Status = DOWN
+
+## Persistence & Crash Recovery
+
+Monitor state is stored in monitors.json, including:
+
+id  
+timeout  
+status  
+expiresAt  
+alert_email
+
+On server startup:
+
+The system loads all monitors.  
+For each monitor with status ACTIVE:  
+If expiresAt is in the future → restart timer.  
+If expiresAt has passed → trigger alert immediately.
+
+This ensures monitoring continues correctly even after a crash or restart.
+
+## Tech Stack
+
+Node.js  
+Express  
+TypeScript  
+File-based persistence (JSON)  
+In-memory watchdog timers
+
+## How to Run the Project
+1. Clone the repository
+git clone <your-repo-url>
+cd pulse-check-api
+
+1. Install dependencies
+npm install
+
+1. Build the project
+npm run build
+
+1. Start the server
+npm start
+
+
+Server runs on:
+
+http://localhost:3000
+
+## API Endpoints
+### Register Monitor
+POST /monitors
+
+
+Body:  
+{
+  "id": "monitor-1",
+  "timeout": 60,
+  "alert_email": "alert@example.com"
+}
+
+### Send Heartbeat
+POST /monitors/:id/heartbeat
+
+### Pause Monitor
+POST /monitors/:id/pause
+
+## Design Decisions
+1. One-Shot Timers
+
+Each monitor uses a one-shot timer (setTimeout) rather than an interval.
+This allows precise reset control and avoids drift.
+
+2. File-Based Persistence
+
+A JSON file was chosen for simplicity and portability.
+This avoids external database dependencies while still supporting crash recovery.
+
+3. Status Guard Before Alert
+
+Before triggering an alert, the system verifies:
+
+if (monitor.status !== "ACTIVE") return;
+
+
+This prevents false alerts when a monitor is paused.
+
+4. Separation of Concerns
+
+Routing logic is separated from timer logic.
+
+Persistence is abstracted from request handling.
+
+Alert triggering is isolated from monitor updates.
+
+
+## Conclusion
+
+This project demonstrates a reliable watchdog monitoring system using TypeScript and Express. It emphasizes clean architecture, state persistence, timer management, and fault tolerance.
+
+The implementation ensures:
+
+Accurate monitoring
+
+Crash recovery
+
+False-alert prevention
+
+Clear separation of responsibilities
