@@ -2,8 +2,8 @@
   {
     "id": "device-123",
     "timeout": 60,
-    "status": "ACTIVE",
+    "status": "DOWN",
     "alertEmail": "admin@critmon.com",
-    "expiresAt": 1770917619026
+    "expiresAt": null
   }
 ]
