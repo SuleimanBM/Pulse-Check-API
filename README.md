@@ -153,11 +153,12 @@ npm run build
 npm start
 
 
-Server runs on:
-
+Server runs on
 http://localhost:3000
 
 ## API Endpoints
+The swagger api is accessed on http://localhost:3000/docs
+
 ### Register Monitor
 POST /monitors
 
@@ -170,10 +171,12 @@ Body:
 }
 
 ### Send Heartbeat
-POST /monitors/:id/heartbeat
+POST /monitors/:id/heartbeat  
+eg: http://localhost:3000/monitors/monitor-1/heartbeat
 
 ### Pause Monitor
-POST /monitors/:id/pause
+POST /monitors/:id/pause  
+eg: http://localhost:3000/monitors/monitor-1/pause
 
 ## Design Decisions
 1. One-Shot Timers
@@ -203,6 +206,29 @@ Persistence is abstracted from request handling.
 
 Alert triggering is isolated from monitor updates.
 
+## Developer’s Choice Challenge
+Added Feature: Persistent State & Crash Recovery
+
+The base watchdog system works while the server is running.  
+However, without persistence:
+
+If the server crashes
+or the process is restarted,
+all monitor data would be lost.
+Timers would disappear.
+Monitoring state would reset.
+And alerts could be missed.
+
+That makes the system unreliable in real-world conditions.
+
+### What I Added
+
+I implemented file-based persistence with crash recovery.
+The system now:  
+Stores all monitor data in monitors.json.
+It saves state on every update (registration, heartbeat, pause)
+and reconstructs timers automatically on server startup.  
+This ensures the system resumes from where it left off.
 
 ## Conclusion
 
